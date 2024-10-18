@@ -1,5 +1,6 @@
 import React from "react";
 import { createCheckout } from "../api";
+import Button from "./Button";
 
 const SubscriptionButton = ({ variantId, planName }) => {
   const handleSubscribe = async () => {
@@ -11,7 +12,11 @@ const SubscriptionButton = ({ variantId, planName }) => {
     }
   };
 
-  return <button onClick={handleSubscribe}>Subscribe to {planName}</button>;
+  return (
+    <Button white className="mb-2" onClick={handleSubscribe}>
+      Subscribe to {planName}
+    </Button>
+  );
 };
 
 export default SubscriptionButton;
