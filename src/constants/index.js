@@ -221,7 +221,7 @@ export const pricing = [
       "Compare prices across multiple sites with just a few clicks",
       "Get personalized recommendations based on your preferences",
     ],
-    variantId: "479274",
+    variantId: "561937",
   },
 ];
 
