@@ -65,13 +65,20 @@ export const navigation = [
   {
     id: "4",
     title: "New account",
-    url: "#signup",
+    url: "Register",
     onlyMobile: true,
   },
   {
     id: "5",
     title: "Sign in",
-    url: "#login",
+    url: "login",
+    onlyMobile: true,
+  },
+
+  {
+    id: "6",
+    title: "Home",
+    url: "/",
     onlyMobile: true,
   },
 ];
