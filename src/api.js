@@ -29,6 +29,8 @@ export const checkSubscription = () => {
   return api.get("/api/check-subscription/");
 };
 
+// added not useful comment
+
 export const createCheckout = (variantId) => {
   return api.post("/api/create-checkout/", { variant_id: variantId });
 };
