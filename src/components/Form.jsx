@@ -18,38 +18,58 @@ function Form({ route, method }) {
   const name = method === "login" ? "Login" : "Register";
 
   useEffect(() => {
+    // Check URL parameters for verification status
     const queryParams = new URLSearchParams(location.search);
-    if (queryParams.get("verified") === "true") {
+    const verified = queryParams.get("verified");
+    const expired = queryParams.get("expired");
+    const invalid = queryParams.get("invalid");
+
+    if (verified === "true") {
       setMessage("Email verified successfully. You can now log in.");
+    } else if (expired === "true") {
+      setError(
+        "Verification link expired. Please check your email for a new link."
+      );
+    } else if (invalid === "true") {
+      setError("Invalid verification link. Please try registering again.");
     }
   }, [location]);
 
   const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
     setError("");
-    e.preventDefault();
+    setMessage("");
 
     try {
       const res = await api.post(route, { email, password });
+
       if (method === "login") {
-        localStorage.setItem(ACCESS_TOKEN, res.data.access);
-        localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
-        navigate("/deala");
+        if (res.data.access && res.data.refresh) {
+          localStorage.setItem(ACCESS_TOKEN, res.data.access);
+          localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
+          navigate("/deala");
+        } else {
+          setError("Invalid login response. Please try again.");
+        }
       } else {
         setMessage(
-          "A verification email has been sent to your email address. Please verify and Login"
+          "Registration successful! Please check your email for verification instructions."
         );
-        setTimeout(() => navigate("/login"), 3000); // Delay for 3 seconds before redirecting to login
+        // Delay redirect to allow user to read the message
+        setTimeout(() => navigate("/login"), 5000);
       }
     } catch (error) {
-      setError(
-        error.response?.data?.detail || "An error occurred. Please try again."
-      );
+      const errorMessage =
+        error.response?.data?.detail ||
+        error.response?.data?.error ||
+        error.response?.data?.email?.[0] ||
+        "An error occurred. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <form onSubmit={handleSubmit} className="form-container">
       <h2 className="h1 mb-6">{name}</h2>

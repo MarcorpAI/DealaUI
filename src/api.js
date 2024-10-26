@@ -9,8 +9,7 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
 });
-
-// Request interceptor to add Authorization header if access token is available
+// / Add request interceptor to add token to all requests
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(ACCESS_TOKEN);
@@ -19,34 +18,49 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    return Promise.reject(error);
+  }
 );
 
-// Response interceptor to handle 401 errors and refresh token if needed
+// Add response interceptor to handle token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // If 401 error, attempt to refresh token
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true; // Prevents multiple retries
+    // If error is 401 and we haven't tried to refresh token yet
+    if (error.response.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
 
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN);
-      if (refreshToken) {
-        try {
-          // Call function to refresh access token
-          const newToken = await refreshAccessToken(refreshToken);
-          localStorage.setItem(ACCESS_TOKEN, newToken); // Save new token
-          originalRequest.headers.Authorization = `Bearer ${newToken}`; // Set the new token in the headers
-          return api(originalRequest); // Retry original request with new token
-        } catch (refreshError) {
-          console.error("Token refresh failed", refreshError);
+      try {
+        // Try to refresh the token
+        const refreshToken = localStorage.getItem(REFRESH_TOKEN);
+        const response = await api.post("/api/token/refresh/", {
+          refresh: refreshToken,
+        });
+
+        if (response.data.access) {
+          // Store new tokens
+          localStorage.setItem(ACCESS_TOKEN, response.data.access);
+          if (response.data.refresh) {
+            localStorage.setItem(REFRESH_TOKEN, response.data.refresh);
+          }
+
+          // Retry the original request
+          originalRequest.headers.Authorization = `Bearer ${response.data.access}`;
+          return api(originalRequest);
         }
+      } catch (refreshError) {
+        // If refresh fails, logout user and redirect to login
+        localStorage.removeItem(ACCESS_TOKEN);
+        localStorage.removeItem(REFRESH_TOKEN);
+        window.location.href = "/login";
+        return Promise.reject(refreshError);
       }
     }
 
-    return Promise.reject(error); // Reject if no valid refresh process
+    return Promise.reject(error);
   }
 );
 
