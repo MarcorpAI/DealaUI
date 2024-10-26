@@ -5,7 +5,8 @@ import api from "../api";
 const VerifyEmail = () => {
   const { token } = useParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState("Verifying your email. Please wait...");
+  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(true);
   const maxRetries = 3;
   const retryDelay = 2000; // 2 seconds
 
@@ -13,9 +14,7 @@ const VerifyEmail = () => {
     try {
       console.log("Token being sent to backend:", token);
 
-      const response = await api.get(
-        `api/verify-email/${token}/?ngrok-skip-browser-warning=true`
-      );
+      const response = await api.get(`api/verify-email/${token}`);
 
       console.log("Full response:", response);
 
@@ -29,6 +28,7 @@ const VerifyEmail = () => {
       } else {
         throw new Error("Unexpected response format");
       }
+      setLoading(false); // Turn off loading
     } catch (error) {
       console.error("Error verifying email:", error);
       if (retryCount < maxRetries) {
@@ -44,6 +44,7 @@ const VerifyEmail = () => {
             error.message ||
             "Email verification failed after multiple attempts. Please try again later."
         );
+        setLoading(false); // Turn off loading if max retries reached
       }
     }
   };
@@ -54,7 +55,15 @@ const VerifyEmail = () => {
 
   return (
     <div className="flex justify-center items-center h-screen">
-      <div className="text-center p-4 bg-white shadow-md rounded">{status}</div>
+      {loading ? (
+        <div className="mt-8 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
+        </div>
+      ) : (
+        <div className="text-center p-4 bg-white shadow-md rounded">
+          {status}
+        </div>
+      )}
     </div>
   );
 };
@@ -115,7 +124,11 @@ export default VerifyEmail;
 //     verifyEmail();
 //   }, [token, navigate]);
 
-//   return <div>{status}</div>;
+//   return (
+//     <div className="flex justify-center items-center h-screen">
+//       <div className="text-center p-4 bg-white shadow-md rounded">{status}</div>
+//     </div>
+//   );
 // };
 
 // export default VerifyEmail;
