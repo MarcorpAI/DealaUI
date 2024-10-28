@@ -150,7 +150,7 @@ const Hero = () => {
 
     try {
       const { data } = await axios.post(
-        "http://127.0.0.1:8000/api/user-query/",
+        "https://mysite-sdvw.onrender.com/api/user-query/",
         { query },
         {
           headers: {
