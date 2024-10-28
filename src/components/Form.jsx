@@ -21,12 +21,12 @@ function Form({ route, method }) {
     // Check URL parameters for verification status
     const queryParams = new URLSearchParams(location.search);
     const verified = queryParams.get("verified");
-    const expired = queryParams.get("expired");
+    const expired = queryParams.get("session");
     const invalid = queryParams.get("invalid");
 
     if (verified === "true") {
       setMessage("Email verified successfully. You can now log in.");
-    } else if (expired === "true") {
+    } else if (expired === "expired") {
       setError(
         "Verification link expired. Please check your email for a new link."
       );
