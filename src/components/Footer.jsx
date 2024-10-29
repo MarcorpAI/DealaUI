@@ -10,6 +10,10 @@ const Footer = () => {
           © {new Date().getFullYear()}. All rights reserved.
         </p>
 
+        <a href="/policy" className="caption text-n-4 lg:block">
+          T & Cs Apply
+        </a>
+
         <ul className="flex gap-5 flex-wrap">
           {socials.map((item) => (
             <a

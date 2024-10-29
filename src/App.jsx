@@ -12,6 +12,7 @@ import Pricing from "./components/Pricing";
 import Footer from "./components/Footer";
 import VerifyEmail from "./pages/VerifyEmail";
 import EmailVerification from "./components/EmailVerification";
+import PoliciesPage from "./pages/PolicyPage";
 
 function Logout() {
   localStorage.clear();
@@ -46,6 +47,7 @@ const App = () => {
           <Route path="/register" element={<RegisterAndLogout />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/verify-email/:token" element={<VerifyEmail />} />
+          <Route path="/policy" element={<PoliciesPage />} />
           <Route
             path="/deala"
             element={

@@ -20,7 +20,7 @@ const Hero = () => {
       <div className="container relative" ref={parallaxRef}>
         <div className="relative z-1 max-w-[62rem] mx-auto text-center mb-[4rem] md:mb-20 lg:mb:[6rem]">
           <h1 className="h1 mb-6">
-            Find Best Deals Online: AI-Powered Shopping Assistant.
+            Let AI Help You Save Money While Shopping - Meet
             {` `}
             <span className="inlnie-block relative">
               Deala{" "}
@@ -34,9 +34,10 @@ const Hero = () => {
             </span>
           </h1>
           <p className="body-1 max-w-3xl mx-auto mb-6 text-n-2 lg:mb-8 ">
-            Unleash the power of AI to find your perfect deal. Simply describe
-            what you're looking for, and let our intelligent assistant scour the
-            web for the best offers. Shop smarter, not harder.
+            Ever wished shopping could be as easy as telling a friend what you
+            want? Now it is. Share your shopping dreams with Deala, and we'll
+            navigate countless stores to find deals that make you smile. Because
+            great prices shouldn't be hard to find.
           </p>
           <Button href="/deala" white>
             Start Saving Now

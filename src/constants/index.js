@@ -224,9 +224,9 @@ export const pricing = [
     description: "Search for deals across multiple websites",
     price: "73.99",
     features: [
-      "Search the web effortlessly to discover the best deals online",
-      "Compare prices across multiple sites with just a few clicks",
-      "Get personalized recommendations based on your preferences",
+      "Get recommendations that feel like they're from a friend who knows your taste",
+      "Find hidden gems across the web while you sit back and relax",
+      "Every price, every store, one beautiful overview",
     ],
     variantId: "561937",
   },
@@ -296,13 +296,13 @@ export const socials = [
     id: "1",
     title: "Twitter",
     iconUrl: twitter,
-    url: "#",
+    url: "https://www.x.com/bumpymark",
   },
   {
     id: "2",
     title: "Instagram",
     iconUrl: instagram,
-    url: "#",
+    url: "https://www.instagram.com/mark_kaave",
   },
   {
     id: "3",
@@ -314,6 +314,6 @@ export const socials = [
     id: "4",
     title: "Facebook",
     iconUrl: facebook,
-    url: "#",
+    url: "https://www.facebook.com/marcorpai",
   },
 ];
