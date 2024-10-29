@@ -8,17 +8,13 @@ const VerifyEmail = () => {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const maxRetries = 3;
-  const retryDelay = 2000; // 2 seconds
+  const retryDelay = 2000;
 
   const verifyEmail = async (retryCount = 0) => {
     try {
-      console.log("Token being sent to backend:", token);
-
       const response = await api.get(`api/verify-email/${token}`);
 
-      console.log("Full response:", response);
-
-      if (response.data && response.data.message) {
+      if (response.data?.message) {
         if (response.data.message.includes("verified successfully")) {
           setStatus("Email verified successfully! Redirecting to login...");
           setTimeout(() => navigate("/login?verified=true"), 3000);
@@ -28,9 +24,17 @@ const VerifyEmail = () => {
       } else {
         throw new Error("Unexpected response format");
       }
-      setLoading(false); // Turn off loading
+      setLoading(false);
     } catch (error) {
       console.error("Error verifying email:", error);
+
+      // Handle specific error cases
+      if (error.response?.status === 401) {
+        // Token expired or invalid
+        navigate("/login?session=expired");
+        return;
+      }
+
       if (retryCount < maxRetries) {
         setStatus(
           `Verification attempt failed. Retrying... (${
@@ -39,19 +43,27 @@ const VerifyEmail = () => {
         );
         setTimeout(() => verifyEmail(retryCount + 1), retryDelay);
       } else {
-        setStatus(
+        const errorMessage =
           error.response?.data?.error ||
-            error.message ||
-            "Email verification failed after multiple attempts. Please try again later."
-        );
-        setLoading(false); // Turn off loading if max retries reached
+          error.message ||
+          "Email verification failed after multiple attempts.";
+        setStatus(errorMessage);
+
+        // If the error indicates an invalid token or expired session
+        if (error.response?.data?.invalid) {
+          setTimeout(() => navigate("/login?invalid=true"), 3000);
+        } else if (error.response?.data?.expired) {
+          setTimeout(() => navigate("/login?session=expired"), 3000);
+        }
+
+        setLoading(false);
       }
     }
   };
 
   useEffect(() => {
     verifyEmail();
-  }, [token, navigate]);
+  }, [token]);
 
   return (
     <div className="flex justify-center items-center h-screen">
@@ -77,7 +89,8 @@ export default VerifyEmail;
 // const VerifyEmail = () => {
 //   const { token } = useParams();
 //   const navigate = useNavigate();
-//   const [status, setStatus] = useState("Verifying your email. Please wait...");
+//   const [status, setStatus] = useState("");
+//   const [loading, setLoading] = useState(true);
 //   const maxRetries = 3;
 //   const retryDelay = 2000; // 2 seconds
 
@@ -85,9 +98,7 @@ export default VerifyEmail;
 //     try {
 //       console.log("Token being sent to backend:", token);
 
-//       const response = await api.get(
-//         `api/verify-email/${token}/?ngrok-skip-browser-warning=true`
-//       );
+//       const response = await api.get(`api/verify-email/${token}`);
 
 //       console.log("Full response:", response);
 
@@ -101,6 +112,7 @@ export default VerifyEmail;
 //       } else {
 //         throw new Error("Unexpected response format");
 //       }
+//       setLoading(false); // Turn off loading
 //     } catch (error) {
 //       console.error("Error verifying email:", error);
 //       if (retryCount < maxRetries) {
@@ -116,6 +128,7 @@ export default VerifyEmail;
 //             error.message ||
 //             "Email verification failed after multiple attempts. Please try again later."
 //         );
+//         setLoading(false); // Turn off loading if max retries reached
 //       }
 //     }
 //   };
@@ -126,7 +139,15 @@ export default VerifyEmail;
 
 //   return (
 //     <div className="flex justify-center items-center h-screen">
-//       <div className="text-center p-4 bg-white shadow-md rounded">{status}</div>
+//       {loading ? (
+//         <div className="mt-8 flex items-center justify-center">
+//           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
+//         </div>
+//       ) : (
+//         <div className="text-center p-4 bg-white shadow-md rounded">
+//           {status}
+//         </div>
+//       )}
 //     </div>
 //   );
 // };

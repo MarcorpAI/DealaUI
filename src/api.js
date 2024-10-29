@@ -1,7 +1,6 @@
 import axios from "axios";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
 
-// Create an Axios instance
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   headers: {
@@ -9,7 +8,6 @@ const api = axios.create({
   },
 });
 
-// Track token refresh state
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -24,7 +22,13 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// Add request interceptor
+// Helper function to handle logout and redirect
+const handleAuthError = () => {
+  localStorage.removeItem(ACCESS_TOKEN);
+  localStorage.removeItem(REFRESH_TOKEN);
+  window.location.href = "/login?session=expired";
+};
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(ACCESS_TOKEN);
@@ -33,18 +37,15 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Add response interceptor
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // If the error is not 401 or we've already retried, reject immediately
+    // If error is not 401 or request has been retried, reject
     if (
       !error.response ||
       error.response.status !== 401 ||
@@ -53,7 +54,6 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // If we're already refreshing, queue this request
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         failedQueue.push({ resolve, reject });
@@ -62,9 +62,7 @@ api.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${token}`;
           return api(originalRequest);
         })
-        .catch((err) => {
-          return Promise.reject(err);
-        });
+        .catch((err) => Promise.reject(err));
     }
 
     originalRequest._retry = true;
@@ -72,14 +70,14 @@ api.interceptors.response.use(
 
     try {
       const refreshToken = localStorage.getItem(REFRESH_TOKEN);
-
       if (!refreshToken) {
         throw new Error("No refresh token available");
       }
 
-      const response = await api.post("/api/token/refresh/", {
-        refresh: refreshToken,
-      });
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/token/refresh/`,
+        { refresh: refreshToken }
+      );
 
       const { access, refresh } = response.data;
 
@@ -89,32 +87,23 @@ api.interceptors.response.use(
           localStorage.setItem(REFRESH_TOKEN, refresh);
         }
 
-        // Update auth header for original request
-        originalRequest.headers.Authorization = `Bearer ${access}`;
-
-        // Process any queued requests
+        api.defaults.headers.common["Authorization"] = `Bearer ${access}`;
         processQueue(null, access);
-
         return api(originalRequest);
       } else {
         throw new Error("No access token received");
       }
-    } catch (refreshError) {
-      // Clear tokens and process queue with error
-      localStorage.removeItem(ACCESS_TOKEN);
-      localStorage.removeItem(REFRESH_TOKEN);
-      processQueue(refreshError, null);
-
-      // Redirect to login with expired session parameter
-      window.location.href = "/login?session=expired";
-      return Promise.reject(refreshError);
+    } catch (error) {
+      processQueue(error, null);
+      handleAuthError();
+      return Promise.reject(error);
     } finally {
       isRefreshing = false;
     }
   }
 );
 
-// API utility functions
+// // API utility functions
 export const checkSubscription = () => api.get("/api/check-subscription/");
 
 export const createCheckout = (variantId) =>
@@ -127,13 +116,144 @@ export const hasValidTokens = () => {
   );
 };
 
-// Helper function to clear auth state
-export const clearAuthState = () => {
-  localStorage.removeItem(ACCESS_TOKEN);
-  localStorage.removeItem(REFRESH_TOKEN);
-};
-
 export default api;
+
+// import axios from "axios";
+// import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
+
+// // Create an Axios instance
+// const api = axios.create({
+//   baseURL: import.meta.env.VITE_API_URL,
+//   headers: {
+//     "Content-Type": "application/json",
+//   },
+// });
+
+// // Track token refresh state
+// let isRefreshing = false;
+// let failedQueue = [];
+
+// const processQueue = (error, token = null) => {
+//   failedQueue.forEach((prom) => {
+//     if (error) {
+//       prom.reject(error);
+//     } else {
+//       prom.resolve(token);
+//     }
+//   });
+//   failedQueue = [];
+// };
+
+// // Add request interceptor
+// api.interceptors.request.use(
+//   (config) => {
+//     const token = localStorage.getItem(ACCESS_TOKEN);
+//     if (token) {
+//       config.headers.Authorization = `Bearer ${token}`;
+//     }
+//     return config;
+//   },
+//   (error) => {
+//     return Promise.reject(error);
+//   }
+// );
+
+// // Add response interceptor
+// api.interceptors.response.use(
+//   (response) => response,
+//   async (error) => {
+//     const originalRequest = error.config;
+
+//     // If the error is not 401 or we've already retried, reject immediately
+//     if (
+//       !error.response ||
+//       error.response.status !== 401 ||
+//       originalRequest._retry
+//     ) {
+//       return Promise.reject(error);
+//     }
+
+//     // If we're already refreshing, queue this request
+//     if (isRefreshing) {
+//       return new Promise((resolve, reject) => {
+//         failedQueue.push({ resolve, reject });
+//       })
+//         .then((token) => {
+//           originalRequest.headers.Authorization = `Bearer ${token}`;
+//           return api(originalRequest);
+//         })
+//         .catch((err) => {
+//           return Promise.reject(err);
+//         });
+//     }
+
+//     originalRequest._retry = true;
+//     isRefreshing = true;
+
+//     try {
+//       const refreshToken = localStorage.getItem(REFRESH_TOKEN);
+
+//       if (!refreshToken) {
+//         throw new Error("No refresh token available");
+//       }
+
+//       const response = await api.post("/api/token/refresh/", {
+//         refresh: refreshToken,
+//       });
+
+//       const { access, refresh } = response.data;
+
+//       if (access) {
+//         localStorage.setItem(ACCESS_TOKEN, access);
+//         if (refresh) {
+//           localStorage.setItem(REFRESH_TOKEN, refresh);
+//         }
+
+//         // Update auth header for original request
+//         originalRequest.headers.Authorization = `Bearer ${access}`;
+
+//         // Process any queued requests
+//         processQueue(null, access);
+
+//         return api(originalRequest);
+//       } else {
+//         throw new Error("No access token received");
+//       }
+//     } catch (refreshError) {
+//       // Clear tokens and process queue with error
+//       localStorage.removeItem(ACCESS_TOKEN);
+//       localStorage.removeItem(REFRESH_TOKEN);
+//       processQueue(refreshError, null);
+
+//       // Redirect to login with expired session parameter
+//       window.location.href = "/login?session=expired";
+//       return Promise.reject(refreshError);
+//     } finally {
+//       isRefreshing = false;
+//     }
+//   }
+// );
+
+// // API utility functions
+// export const checkSubscription = () => api.get("/api/check-subscription/");
+
+// export const createCheckout = (variantId) =>
+//   api.post("/api/create-checkout/", { variant_id: variantId });
+
+// // Helper function to check if tokens exist
+// export const hasValidTokens = () => {
+//   return !!(
+//     localStorage.getItem(ACCESS_TOKEN) && localStorage.getItem(REFRESH_TOKEN)
+//   );
+// };
+
+// // Helper function to clear auth state
+// export const clearAuthState = () => {
+//   localStorage.removeItem(ACCESS_TOKEN);
+//   localStorage.removeItem(REFRESH_TOKEN);
+// };
+
+// export default api;
 
 // import axios from "axios";
 // import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
