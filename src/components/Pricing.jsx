@@ -27,7 +27,7 @@ const Pricing = () => {
           </div>
         </div>
 
-        <Heading tag="Get started with Deala" title="Pay once, Every Year" />
+        <Heading tag="Get started with Deala" title="Flexible monthly plan" />
 
         <div className="relative">
           <PricingList />

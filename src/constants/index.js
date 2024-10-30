@@ -222,7 +222,7 @@ export const pricing = [
     id: "1",
     title: "Standard",
     description: "Search for deals across multiple websites",
-    price: "73.99",
+    price: "9.99",
     features: [
       "Get recommendations that feel like they're from a friend who knows your taste",
       "Find hidden gems across the web while you sit back and relax",
