@@ -26,9 +26,7 @@ function Form({ route, method }) {
     if (verified === "true") {
       setMessage("Email verified successfully. You can now log in.");
     } else if (expired === "expired") {
-      setError(
-        "Verification link expired. Please check your email for a new link."
-      );
+      setError("Session expired. Please login");
     } else if (invalid === "true") {
       setError("Invalid verification link. Please try registering again.");
     }
