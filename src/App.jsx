@@ -13,6 +13,7 @@ import Footer from "./components/Footer";
 import VerifyEmail from "./pages/VerifyEmail";
 import EmailVerification from "./components/EmailVerification";
 import PoliciesPage from "./pages/PolicyPage";
+import { Analytics } from "@vercel/analytics/react";
 
 function Logout() {
   localStorage.clear();
@@ -28,6 +29,7 @@ const App = () => {
   return (
     <BrowserRouter>
       <div className="pt-4[4.75rem] lg:pt-[5.25rem] overflow-hidden">
+        <Analytics />
         <Header />{" "}
         <Routes>
           <Route
