@@ -11,8 +11,8 @@ const Benefits = () => {
     <Section id="features">
       <div className="container relative z-2">
         <Heading
-          className="md:max-w-md lg:max-w-2xl"
-          title="Shop smarter. Save bigger. Experience the future of deal hunting."
+          className=" text-bold md:max-w-md lg:max-w-2xl"
+          title="'Ask anything, Shop Everything'."
         />
 
         <div className="flex flex-wrap gap-10 mb-10">

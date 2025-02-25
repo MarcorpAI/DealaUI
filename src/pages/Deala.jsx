@@ -1,148 +1,170 @@
-import { useState } from "react";
-import axios from "axios";
-import {
-  ChevronDown,
-  ChevronUp,
-  Tag,
-  Percent,
-  DollarSign,
-  Clock,
-  ExternalLink,
-  Search,
-} from "lucide-react";
+import { useState, useContext, useRef, useEffect } from "react";
 import Section from "../components/Section";
 import Button from "../components/Button";
+import axios from "axios";
 import Heading from "../components/Heading";
-import ButtonGradient from "../assets/svg/ButtonGradient";
 import { ACCESS_TOKEN } from "../constants";
+import { service1 } from "../assets";
 import withSubscription from "../components/withSubscription";
+import { useNavigate } from "react-router-dom";
+import { SearchContext } from "../context/SearchContext";
+import { motion, AnimatePresence } from "framer-motion";
+import { Star, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowUp } from "lucide-react"
+
+// ... StarRating component remains unchanged ...
+const StarRating = ({ rating }) => {
+  const numericRating = rating ? parseFloat(rating) : 0;
+  const totalStars = 5;
+  const fullStars = Math.floor(numericRating);
+  const hasHalfStar = numericRating % 1 >= 0.5;
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex">
+        {[...Array(totalStars)].map((_, index) => (
+          <Star
+            key={index}
+            size={24}
+            className={`${
+              index < fullStars
+                ? 'fill-yellow-400 text-yellow-400'
+                : index === fullStars && hasHalfStar
+                ? 'fill-yellow-400/50 text-yellow-400'
+                : 'fill-gray-700 text-gray-700'
+            } transition-colors`}
+          />
+        ))}
+      </div>
+      {numericRating > 0 && (
+        <span className="text-gray-300 text-lg font-medium">
+          {numericRating.toFixed(1)}
+        </span>
+      )}
+    </div>
+  );
+};
+
+// ... DealCard component remains unchanged ...
+const DealCard = ({ deal, onViewDeal }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  return (
+    <motion.div
+      className="group relative bg-gradient-to-b from-gray-900/40 to-gray-900/60 backdrop-blur-xl rounded-[2rem] overflow-hidden border border-gray-800 hover:border-gray-700 flex flex-col h-full"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -8 }}
+    >
+      {/* Image Container with Fixed Aspect Ratio */}
+      <div className="relative w-full pt-[75%]">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-gray-900/50 to-gray-900/80 z-10" />
+        {!imageLoaded && (
+          <div className="absolute inset-0 bg-gray-800 animate-pulse" />
+        )}
+        <motion.img 
+          src={deal.image_url || service1} 
+          alt={deal.name}
+          onLoad={() => setImageLoaded(true)}
+          className={`absolute inset-0 w-full h-full object-cover transform transition-all duration-700 ease-out ${
+            imageLoaded ? 'opacity-100' : 'opacity-0'
+          } ${
+            imageLoaded ? 'group-hover:scale-110' : ''
+          }`}
+        />
+        {deal.savings?.amount && (
+          <motion.div
+            className="absolute top-6 right-6 z-20 bg-red-500/90 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium"
+            whileHover={{ scale: 1.05 }}
+          >
+            Save ${parseFloat(deal.savings.amount).toFixed(2)}
+          </motion.div>
+        )}
+      </div>
+
+      {/* Content Container */}
+      <div className="relative z-20 p-8 flex flex-col flex-grow">
+        <h2 className="text-2xl font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-2 mb-4">
+          {deal.name}
+        </h2>
+
+        <div className="flex-grow">
+          <StarRating rating={deal.rating} />
+          <p className="text-gray-400 text-sm mt-2">{deal.retailer}</p>
+        </div>
+
+        <div className="mt-6 pt-4 border-t border-gray-800">
+          <div className="flex items-end justify-between mb-6">
+            <div className="space-y-1">
+              <p className="text-sm text-gray-400 font-medium">Current Price</p>
+              <div className="flex items-baseline gap-3">
+                <span className="text-4xl font-bold text-white">
+                  ${parseFloat(deal.currentPrice).toFixed(2)}
+                </span>
+                {deal.originalPrice && (
+                  <span className="text-lg text-gray-500 line-through">
+                    ${parseFloat(deal.originalPrice).toFixed(2)}
+                  </span>
+                )}
+              </div>
+            </div>
+            {deal.savings?.percentage && (
+              <div className="bg-green-500/90 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-bold">
+                {Math.round(parseFloat(deal.savings.percentage))}% OFF
+              </div>
+            )}
+          </div>
+
+          <motion.button
+            onClick={() => onViewDeal(deal)}
+            className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold text-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+            whileHover={{ 
+              boxShadow: "0 0 20px rgba(66, 153, 225, 0.5)",
+            }}
+            whileTap={{ scale: 0.98 }}
+          >
+            View Deal
+          </motion.button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
 const Hero = () => {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState(null);
   const [error, setError] = useState("");
-  const [expandedDeals, setExpandedDeals] = useState({});
+  const navigate = useNavigate();
+  const { searchResults, setSearchResults } = useContext(SearchContext);
+  const textareaRef = useRef(null);
 
-  const toggleDealExpansion = (dealIndex) => {
-    setExpandedDeals((prev) => ({
-      ...prev,
-      [dealIndex]: !prev[dealIndex],
-    }));
-  };
-
-  const parseAIResponse = (response) => {
-    // First, get the response text from the appropriate property
-    const responseText =
-      response.ai_response ||
-      response.aiResponse ||
-      response.data ||
-      response.text;
-
-    if (!responseText || typeof responseText !== "string") {
-      console.error("Invalid response format:", response);
-      return [];
+  // Auto-resize function
+  const adjustHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
     }
-
-    // Split the response into sections based on numbered items
-    const dealSections = responseText
-      .split(/(?=\d+\.\s+\*\*)/g)
-      .filter(Boolean);
-
-    return dealSections
-      .map((section) => {
-        // Helper function to extract value after a label
-        const extractValue = (text, label, multiline = false) => {
-          const regex = multiline
-            ? new RegExp(`${label}:[\\s\\S]*?((?=\\d+\\.|$|\\*\\*))`)
-            : new RegExp(`${label}:\\s*([^\\n]+)`);
-          const match = text.match(regex);
-          return match
-            ? multiline
-              ? match[0].split(":\n").slice(1).join("\n").trim()
-              : match[1].trim()
-            : null;
-        };
-
-        // Extract basic deal information
-        const nameMatch = section.match(/\*\*([^*]+)\*\*/);
-        const name = nameMatch ? nameMatch[1].trim() : null;
-
-        // Extract prices
-        const currentPrice = extractValue(section, "Current Price")?.replace(
-          /[^0-9.]/g,
-          ""
-        );
-        const originalPrice = extractValue(section, "Original Price")?.replace(
-          /[^0-9.]/g,
-          ""
-        );
-
-        // Extract description and URLs
-        const description = extractValue(section, "Description");
-        const productLink = extractValue(section, "Product URL");
-        const expiration = extractValue(section, "Expiration");
-
-        // Extract coupons
-        const couponSection =
-          section.match(/Available Coupons:([\s\S]*?)(?=\n\s*[A-Z]|$)/)?.[1] ||
-          "";
-        const coupons = Array.from(
-          couponSection.matchAll(/\* Code:\s*(.*?)\s*-\s*(.*?)(?=\n|$)/g)
-        ).map((match) => ({
-          code: match[1].trim(),
-          description: match[2].trim(),
-        }));
-
-        // Extract cashback offers
-        const cashbackSection =
-          section.match(/Cashback Offers:([\s\S]*?)(?=\n\s*[A-Z]|$)/)?.[1] ||
-          "";
-        const cashback = Array.from(
-          cashbackSection.matchAll(/\*\s*(.*?):\s*(.*?)(?=\n|$)/g)
-        ).map((match) => ({
-          platform: match[1].trim(),
-          amount: match[2].trim(),
-        }));
-
-        // Extract steps
-        const stepsSection =
-          section.match(
-            /How to Get This Deal\*\*:([\s\S]*?)(?=\n\s*\d+\.|$)/
-          )?.[1] || "";
-        const steps = stepsSection
-          .split(/\d+\.\s+/)
-          .filter(Boolean)
-          .map((step) => step.trim());
-
-        // Return the structured deal object
-        return {
-          name,
-          currentPrice,
-          originalPrice,
-          description,
-          productLink,
-          coupons: coupons.filter((c) => c.code && c.description),
-          cashback: cashback.filter((c) => c.platform && c.amount),
-          steps: steps.filter(Boolean),
-          expiration,
-        };
-      })
-      .filter((deal) => deal.name); // Filter out any deals without names
   };
+
+  // Adjust height on value change
+  useEffect(() => {
+    adjustHeight();
+  }, [query]);
 
   const handleInputChange = (e) => {
     setQuery(e.target.value);
-    setError("");
+    adjustHeight();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setResponse(null);
+
     setError("");
 
     if (!query.trim()) {
-      setError("Please enter a search query.");
+      setError("Query cannot be empty.");
       return;
     }
 
@@ -150,7 +172,7 @@ const Hero = () => {
 
     try {
       const { data } = await axios.post(
-        "https://mysite-sdvw.onrender.com/api/user-query/",
+        "http://127.0.0.1:8000/api/user-query/",
         { query },
         {
           headers: {
@@ -160,447 +182,302 @@ const Hero = () => {
         }
       );
 
-      // Parse the AI response from the data
-      const deals = parseAIResponse(data);
-
-      if (deals.length === 0) {
-        setError("No deals found. Please try a different search.");
-      } else {
-        setResponse({ deals });
-      }
+      setSearchResults(data.deals);
     } catch (err) {
+      console.error("Error occurred:", err);
       setError(
         err.response?.data?.error ||
-          "An error occurred while searching for deals. Please try again."
+          "An error occurred while processing your query."
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateSavings = (deal) => {
-    const original = parseFloat(deal.originalPrice || "0");
-    const current = parseFloat(deal.currentPrice || "0");
-
-    if (original && current && original > current) {
-      const savings = original - current;
-      const percentage = (savings / original) * 100;
-      return {
-        amount: savings.toFixed(2),
-        percentage: percentage.toFixed(1),
-      };
-    }
-    return null;
-  };
-
-  const handleDealClick = (link) => {
-    if (!link) {
-      setError("No link available for this deal.");
-      return;
-    }
-
-    try {
-      const cleanUrl = link.trim().replace(/\s+/g, "");
-      // Only open if it's a valid URL
-      if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
-        window.open(cleanUrl, "_blank", "noopener,noreferrer");
-      } else {
-        setError("Invalid URL format for this deal.");
-      }
-    } catch {
-      setError("Invalid URL format for this deal.");
-    }
+  const handleProductClick = (deal) => {
+    navigate(`/products/${deal.product_id}`, { state: { deal } });
   };
 
   return (
-    <Section
-      className="pt-[12rem] -mt-[5.25rem] flex flex-col justify-center items-center min-h-screen"
+    <Section 
+      className="min-h-screen bg-gradient-to-b from-gray-900 to-black pt-32 md:pt-40 lg:pt-48" 
       id="hero"
     >
-      {/* Header */}
-      <div className="container relative z-2 text-center">
-        <Heading
-          className="md:max-w-md lg:max-w-2xl mx-auto"
-          title="Shop smarter. Save bigger. Experience the future of deal hunting."
-        />
-      </div>
-
-      {/* Search Form */}
-      <div className="mt-8 w-full max-w-3xl flex items-center space-x-4 px-4">
-        <form
-          className="flex-grow flex items-center bg-gray-900/50 backdrop-blur-sm border border-gray-700 rounded-full p-2"
-          onSubmit={handleSubmit}
+      <div className="container relative z-10 mx-auto px-4 mt-8 md:mt-12 lg:mt-16">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center"
         >
-          <input
-            type="text"
-            value={query}
-            onChange={handleInputChange}
-            placeholder="Search for products, deals, or discounts..."
-            className="flex-grow bg-transparent border-none outline-none text-white px-4 py-2"
+          <Heading 
+            className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent mb-12" 
+            title="Ask Anything, Shop Everything!" 
           />
-          <Button
-            type="submit"
-            className="flex items-center gap-2"
-            disabled={loading}
+          
+          <form 
+            onSubmit={handleSubmit} 
+            className="w-full max-w-4xl mx-auto px-4"
           >
-            <Search size={20} />
-            <span>Search</span>
-          </Button>
-        </form>
+          <div className="relative w-full">
+            <textarea
+                ref={textareaRef}
+                placeholder="Search for products..."
+                value={query}
+                onChange={handleInputChange}
+                rows={1}
+                className="w-full px-8 py-6 pr-20 text-xl rounded-2xl border border-gray-700 bg-gray-900/50 backdrop-blur-xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors resize-none overflow-hidden min-h-[72px]"
+              />
+              <motion.button
+                  type="submit"
+                  className="absolute right-6 top-[50%] -translate-y-1/2 w-12 h-12 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center justify-center hover:from-blue-700 hover:to-purple-700 transition-all duration-300 z-10"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <ArrowUp className="w-6 h-6" />
+              </motion.button>
+          </div>
+            
+            {/* <textarea
+              ref={textareaRef}
+              placeholder="Search for products..."
+              value={query}
+              onChange={handleInputChange}
+              rows={1}
+              className="w-full px-6 py-4 text-lg rounded-l-xl border border-gray-700 bg-gray-900/50 backdrop-blur-xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors resize-none overflow-hidden min-h-[60px]"
+            />
+            <motion.button
+              type="submit"
+              className="px-8 py-4 rounded-r-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Search
+            </motion.button> */}
+          </form>
+          
+          {loading && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mt-8"
+            >
+              <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"/>
+            </motion.div>
+          )}
+          
+          {error && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mt-6 text-red-500 text-lg"
+            >
+              {error}
+            </motion.p>
+          )}
+        </motion.div>
       </div>
 
-      {/* Loading and Error States */}
-      {loading && (
-        <div className="mt-8 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-        </div>
-      )}
+      <AnimatePresence>
+        {searchResults && searchResults.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.6 }}
+            className="mt-24 md:mt-32 max-w-[1400px] w-full mx-auto px-6"
+          >
+            <div className="text-center mb-16">
+              <Heading 
+                className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent" 
+                title="Exclusive Deals Just for You" 
+              />
+            </div>
 
-      {error && (
-        <div className="mt-8 px-4 py-3 bg-red-500/20 text-red-400 rounded-lg text-center">
-          {error}
-        </div>
-      )}
-
-      {/* Deals Display */}
-      {response?.deals && response.deals.length > 0 && (
-        <div className="mt-8 w-full max-w-7xl px-4">
-          <div className="container relative z-2 text-center mb-8">
-            <Heading
-              className="md:max-w-md lg:max-w-2xl mx-auto"
-              title={`Found ${response.deals.length} Deal${
-                response.deals.length > 1 ? "s" : ""
-              }`}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {response.deals.map((deal, index) => {
-              const savings = calculateSavings(deal);
-              const isExpanded = expandedDeals[index];
-
-              return (
-                <div
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {searchResults.map((deal, index) => (
+                <DealCard 
                   key={index}
-                  className="card bg-gray-900/50 backdrop-blur-xl border border-gray-800 rounded-xl overflow-hidden hover:border-gray-700 transition-colors"
-                >
-                  <div className="p-6">
-                    {/* Deal Header */}
-                    <div className="flex justify-between items-start mb-4">
-                      <h2 className="text-xl font-bold text-white">
-                        {deal.name}
-                      </h2>
-                      <div className="flex flex-col items-end">
-                        {deal.originalPrice && (
-                          <div className="text-sm text-gray-400 line-through">
-                            ${deal.originalPrice}
-                          </div>
-                        )}
-                        <div className="text-2xl font-bold text-white">
-                          ${deal.currentPrice}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Savings Badge */}
-                    {savings && (
-                      <div className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full inline-flex items-center gap-2 mb-4">
-                        <DollarSign size={16} />
-                        <span>
-                          Save ${savings.amount} ({savings.percentage}% off)
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Description */}
-                    {deal.description && (
-                      <p className="text-gray-300 mb-4">{deal.description}</p>
-                    )}
-
-                    {/* Expand/Collapse Button */}
-                    <button
-                      onClick={() => toggleDealExpansion(index)}
-                      className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors mb-4"
-                    >
-                      {isExpanded ? (
-                        <>
-                          <ChevronUp size={20} />
-                          <span>Show less</span>
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown size={20} />
-                          <span>Show more details</span>
-                        </>
-                      )}
-                    </button>
-
-                    {/* Extended Info */}
-                    {isExpanded && (
-                      <div className="space-y-4 mt-4 border-t border-gray-700 pt-4">
-                        {/* Coupons Section */}
-                        {deal.coupons && deal.coupons.length > 0 && (
-                          <div className="space-y-2">
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                              <Tag size={18} />
-                              Available Coupons
-                            </h3>
-                            <div className="space-y-2">
-                              {deal.coupons.map((coupon, idx) => (
-                                <div
-                                  key={idx}
-                                  className="bg-gray-800/50 p-3 rounded-lg"
-                                >
-                                  <div className="font-mono text-green-400">
-                                    {coupon.code}
-                                  </div>
-                                  <div className="text-sm text-gray-300">
-                                    {coupon.description}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Cashback Section */}
-                        {deal.cashback && deal.cashback.length > 0 && (
-                          <div className="space-y-2">
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                              <Percent size={18} />
-                              Cashback Offers
-                            </h3>
-                            <div className="space-y-2">
-                              {deal.cashback.map((offer, idx) => (
-                                <div
-                                  key={idx}
-                                  className="bg-gray-800/50 p-3 rounded-lg"
-                                >
-                                  <div className="font-semibold text-white">
-                                    {offer.platform}
-                                  </div>
-                                  <div className="text-green-400">
-                                    {offer.amount}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Steps Section */}
-                        {deal.steps && deal.steps.length > 0 && (
-                          <div className="space-y-2">
-                            <h3 className="text-lg font-semibold text-white">
-                              How to Get This Deal
-                            </h3>
-                            <ol className="list-decimal list-inside space-y-1 text-gray-300">
-                              {deal.steps.map((step, idx) => (
-                                <li key={idx}>{step}</li>
-                              ))}
-                            </ol>
-                          </div>
-                        )}
-
-                        {/* Expiration */}
-                        {deal.expiration && (
-                          <div className="flex items-center gap-2 text-sm text-gray-400">
-                            <Clock size={16} />
-                            <span>Expires: {deal.expiration}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Action Button */}
-                    <div className="mt-6">
-                      <Button
-                        onClick={() => handleDealClick(deal.productLink)}
-                        className="w-full flex items-center justify-center gap-2"
-                      >
-                        <ExternalLink size={20} />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <ButtonGradient />
+                  deal={deal}
+                  onViewDeal={handleProductClick}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Section>
   );
 };
 
 export default withSubscription(Hero);
 
-// import { useState } from "react";
-// import axios from "axios";
-// import {
-//   ChevronDown,
-//   ChevronUp,
-//   Tag,
-//   Percent,
-//   DollarSign,
-//   Clock,
-//   ExternalLink,
-//   Search,
-// } from "lucide-react";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// import { useState, useContext } from "react";
 // import Section from "../components/Section";
 // import Button from "../components/Button";
+// import axios from "axios";
 // import Heading from "../components/Heading";
-// import ButtonGradient from "../assets/svg/ButtonGradient";
 // import { ACCESS_TOKEN } from "../constants";
+// import { service1 } from "../assets";
 // import withSubscription from "../components/withSubscription";
-// // import { Alert } from "@/components/ui/alert";
+// import { useNavigate } from "react-router-dom";
+// import { SearchContext } from "../context/SearchContext";
+// import { motion, AnimatePresence } from "framer-motion";
+// import { Star, ChevronDown, ChevronUp } from "lucide-react";
+
+// const StarRating = ({ rating }) => {
+//   const numericRating = rating ? parseFloat(rating) : 0;
+//   const totalStars = 5;
+//   const fullStars = Math.floor(numericRating);
+//   const hasHalfStar = numericRating % 1 >= 0.5;
+
+//   return (
+//     <div className="flex items-center gap-2">
+//       <div className="flex">
+//         {[...Array(totalStars)].map((_, index) => (
+//           <Star
+//             key={index}
+//             size={24}
+//             className={`${
+//               index < fullStars
+//                 ? 'fill-yellow-400 text-yellow-400'
+//                 : index === fullStars && hasHalfStar
+//                 ? 'fill-yellow-400/50 text-yellow-400'
+//                 : 'fill-gray-700 text-gray-700'
+//             } transition-colors`}
+//           />
+//         ))}
+//       </div>
+//       {numericRating > 0 && (
+//         <span className="text-gray-300 text-lg font-medium">
+//           {numericRating.toFixed(1)}
+//         </span>
+//       )}
+//     </div>
+//   );
+// };
+
+// const DealCard = ({ deal, onViewDeal }) => {
+//   const [imageLoaded, setImageLoaded] = useState(false);
+
+//   return (
+//     <motion.div
+//       className="group relative bg-gradient-to-b from-gray-900/40 to-gray-900/60 backdrop-blur-xl rounded-[2rem] overflow-hidden border border-gray-800 hover:border-gray-700 flex flex-col h-full"
+//       initial={{ opacity: 0, y: 20 }}
+//       animate={{ opacity: 1, y: 0 }}
+//       whileHover={{ y: -8 }}
+//     >
+//       {/* Image Container with Fixed Aspect Ratio */}
+//       <div className="relative w-full pt-[75%]">
+//         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-gray-900/50 to-gray-900/80 z-10" />
+//         {!imageLoaded && (
+//           <div className="absolute inset-0 bg-gray-800 animate-pulse" />
+//         )}
+//         <motion.img 
+//           src={deal.image_url || service1} 
+//           alt={deal.name}
+//           onLoad={() => setImageLoaded(true)}
+//           className={`absolute inset-0 w-full h-full object-cover transform transition-all duration-700 ease-out ${
+//             imageLoaded ? 'opacity-100' : 'opacity-0'
+//           } ${
+//             imageLoaded ? 'group-hover:scale-110' : ''
+//           }`}
+//         />
+//         {deal.savings?.amount && (
+//           <motion.div
+//             className="absolute top-6 right-6 z-20 bg-red-500/90 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium"
+//             whileHover={{ scale: 1.05 }}
+//           >
+//             Save ${parseFloat(deal.savings.amount).toFixed(2)}
+//           </motion.div>
+//         )}
+//       </div>
+
+//       {/* Content Container */}
+//       <div className="relative z-20 p-8 flex flex-col flex-grow">
+//         {/* Title */}
+//         <h2 className="text-2xl font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-2 mb-4">
+//           {deal.name}
+//         </h2>
+
+//         {/* Rating */}
+//         <div className="flex-grow">
+//           <StarRating rating={deal.rating} />
+//           <p className="text-gray-400 text-sm mt-2">{deal.retailer}</p>
+//         </div>
+
+//         {/* Price and CTA Section */}
+//         <div className="mt-6 pt-4 border-t border-gray-800">
+//           <div className="flex items-end justify-between mb-6">
+//             <div className="space-y-1">
+//               <p className="text-sm text-gray-400 font-medium">Current Price</p>
+//               <div className="flex items-baseline gap-3">
+//                 <span className="text-4xl font-bold text-white">
+//                   ${parseFloat(deal.currentPrice).toFixed(2)}
+//                 </span>
+//                 {deal.originalPrice && (
+//                   <span className="text-lg text-gray-500 line-through">
+//                     ${parseFloat(deal.originalPrice).toFixed(2)}
+//                   </span>
+//                 )}
+//               </div>
+//             </div>
+//             {deal.savings?.percentage && (
+//               <div className="bg-green-500/90 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-bold">
+//                 {Math.round(parseFloat(deal.savings.percentage))}% OFF
+//               </div>
+//             )}
+//           </div>
+
+//           <motion.button
+//             onClick={() => onViewDeal(deal)}
+//             className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold text-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+//             whileHover={{ 
+//               boxShadow: "0 0 20px rgba(66, 153, 225, 0.5)",
+//             }}
+//             whileTap={{ scale: 0.98 }}
+//           >
+//             View Deal
+//           </motion.button>
+//         </div>
+//       </div>
+//     </motion.div>
+//   );
+// };
 
 // const Hero = () => {
 //   const [query, setQuery] = useState("");
 //   const [loading, setLoading] = useState(false);
-//   const [response, setResponse] = useState(null);
 //   const [error, setError] = useState("");
-//   const [expandedDeals, setExpandedDeals] = useState({});
-
-//   const toggleDealExpansion = (dealIndex) => {
-//     setExpandedDeals((prev) => ({
-//       ...prev,
-//       [dealIndex]: !prev[dealIndex],
-//     }));
-//   };
-
-//   const parseAIResponse = (response) => {
-//     // **Step 1: Log and Verify the Response Type**
-//     console.log("**Response Received:**");
-//     console.log(typeof response); // Expected output: "object"
-//     console.log(response); // Inspect the response object
-
-//     // **Step 2: Extract the Response Text**
-//     let responseText;
-//     if (response.aiResponse) {
-//       responseText = response.aiResponse;
-//       console.log("**Using aiResponse property:**");
-//     } else if (response.data) {
-//       responseText = response.data;
-//       console.log("**Using data property:**");
-//     } else if (response.text) {
-//       responseText = response.text;
-//       console.log("**Using text property:**");
-//     } else {
-//       console.error("**Error:** Unable to find response text property.");
-//       return []; // or throw an error, depending on your requirements
-//     }
-
-//     // **Step 3: Verify the Response Text Type**
-//     console.log("**Response Text Type:**");
-//     console.log(typeof responseText); // Expected output: "string"
-//     console.log(responseText); // Inspect the response text
-
-//     if (typeof responseText !== "string") {
-//       console.error(
-//         "**Error:** Invalid responseText type:",
-//         typeof responseText
-//       );
-//       return []; // or throw an error, depending on your requirements
-//     }
-
-//     // **Step 4: Split the Response Text into Deal Sections**
-//     const dealSections = responseText.split(
-//       /(?=\d+\.\s+\*\*Product Name\*\*)/g
-//     );
-//     console.log("**Deal Sections:**");
-//     console.log(dealSections); // Inspect the deal sections
-
-//     // **Step 5: Parse Each Deal Section**
-//     const deals = dealSections
-//       .map((section) => {
-//         // Helper function to extract value after a label
-//         const extractValue = (text, label) => {
-//           const match = text.match(new RegExp(`${label}:\\s*([^\\n]+)`));
-//           return match ? match[1].trim() : null;
-//         };
-
-//         // Extract basic information
-//         const name = extractValue(section, "\\*\\*Product Name\\*\\*");
-//         const currentPrice = extractValue(section, "Current Price");
-//         const originalPrice = extractValue(section, "Original Price");
-//         const description = extractValue(section, "Description");
-//         const productLink = extractValue(section, "Product URL");
-//         const expiration = extractValue(section, "Expiration");
-
-//         // Extract coupons
-//         const coupons = [];
-//         const couponSection =
-//           section.match(/Available Coupons:([\s\S]*?)(?=\n\s*[A-Z]|$)/)?.[1] ||
-//           "";
-//         const couponMatches = couponSection.matchAll(
-//           /\* Code:\s*(.*?)\s*-\s*Description:\s*(.*?)(?=\n|$)/g
-//         );
-//         for (const match of Array.from(couponMatches)) {
-//           coupons.push({
-//             code: match[1].trim(),
-//             description: match[2].trim(),
-//           });
-//         }
-
-//         // Extract cashback offers
-//         const cashback = [];
-//         const cashbackSection =
-//           section.match(/Cashback Offers:([\s\S]*?)(?=\n\s*[A-Z]|$)/)?.[1] ||
-//           "";
-//         const cashbackMatches = cashbackSection.matchAll(
-//           /\* Platform:\s*(.*?)\s*-\s*(.*?)(?=\n|$)/g
-//         );
-//         for (const match of Array.from(cashbackMatches)) {
-//           cashback.push({
-//             platform: match[1].trim(),
-//             amount: match[2].trim(),
-//           });
-//         }
-
-//         // Extract steps
-//         const stepsSection =
-//           section.match(
-//             /How to Get This Deal\*\*:([\s\S]*?)(?=\n\s*\d+\.|$)/
-//           )?.[1] || "";
-//         const steps = stepsSection
-//           .split(/\d+\.\s+/)
-//           .filter(Boolean)
-//           .map((step) => step.trim());
-
-//         return {
-//           name,
-//           currentPrice: currentPrice?.replace("$", "").trim(),
-//           originalPrice: originalPrice?.replace("$", "").trim(),
-//           description,
-//           productLink,
-//           coupons,
-//           cashback,
-//           steps,
-//           expiration,
-//         };
-//       })
-//       .filter((deal) => deal.name && deal.productLink);
-
-//     console.log("**Parsed Deals:**");
-//     console.log(deals); // Inspect the parsed deals
-
-//     return deals;
-//   };
+//   const navigate = useNavigate();
+//   const { searchResults, setSearchResults } = useContext(SearchContext);
 
 //   const handleInputChange = (e) => {
 //     setQuery(e.target.value);
-//     setError("");
 //   };
 
 //   const handleSubmit = async (e) => {
 //     e.preventDefault();
-//     setResponse(null);
+
 //     setError("");
 
 //     if (!query.trim()) {
-//       setError("Please enter a search query.");
+//       setError("Query cannot be empty.");
 //       return;
 //     }
 
@@ -618,270 +495,116 @@ export default withSubscription(Hero);
 //         }
 //       );
 
-//       const deals = parseAIResponse(data);
-//       if (deals.length === 0) {
-//         setError("No deals found. Please try a different search.");
-//       } else {
-//         setResponse({ deals });
-//       }
+//       setSearchResults(data.deals);
 //     } catch (err) {
+//       console.error("Error occurred:", err);
 //       setError(
 //         err.response?.data?.error ||
-//           "An error occurred while searching for deals. Please try again."
+//           "An error occurred while processing your query."
 //       );
 //     } finally {
 //       setLoading(false);
 //     }
 //   };
 
-//   const calculateSavings = (deal) => {
-//     const original = parseFloat(
-//       deal.originalPrice?.replace(/[^0-9.]/g, "") || "0"
-//     );
-//     const current = parseFloat(
-//       deal.currentPrice?.replace(/[^0-9.]/g, "") || "0"
-//     );
-
-//     if (original && current) {
-//       const savings = original - current;
-//       const percentage = (savings / original) * 100;
-//       return {
-//         amount: savings.toFixed(2),
-//         percentage: percentage.toFixed(1),
-//       };
-//     }
-//     return null;
-//   };
-
-//   const handleDealClick = (link) => {
-//     if (!link) {
-//       setError("No link available for this deal.");
-//       return;
-//     }
-
-//     try {
-//       const cleanUrl = link.trim().replace(/\s+/g, "");
-//       new URL(cleanUrl); // Validate URL format
-//       window.open(cleanUrl, "_blank", "noopener,noreferrer");
-//     } catch {
-//       setError("Invalid URL format for this deal.");
-//     }
+//   const handleProductClick = (deal) => {
+//     navigate(`/products/${deal.product_id}`, { state: { deal } });
 //   };
 
 //   return (
-//     <Section
-//       className="pt-[12rem] -mt-[5.25rem] flex flex-col justify-center items-center min-h-screen"
+//     <Section 
+//       className="min-h-screen bg-gradient-to-b from-gray-900 to-black pt-32 md:pt-40 lg:pt-48" 
 //       id="hero"
 //     >
-//       {/* Header */}
-//       <div className="container relative z-2 text-center">
-//         <Heading
-//           className="md:max-w-md lg:max-w-2xl mx-auto"
-//           title="Shop smarter. Save bigger. Experience the future of deal hunting."
-//         />
-//       </div>
-
-//       {/* Search Form */}
-//       <div className="mt-8 w-full max-w-3xl flex items-center space-x-4 px-4">
-//         <form
-//           className="flex-grow flex items-center bg-gray-900/50 backdrop-blur-sm border border-gray-700 rounded-full p-2"
-//           onSubmit={handleSubmit}
+//       {/* Search Section */}
+//       <div className="container relative z-10 mx-auto px-4 mt-8 md:mt-12 lg:mt-16">
+//         <motion.div
+//           initial={{ opacity: 0, y: -20 }}
+//           animate={{ opacity: 1, y: 0 }}
+//           transition={{ duration: 0.6 }}
+//           className="text-center"
 //         >
-//           <input
-//             type="text"
-//             value={query}
-//             onChange={handleInputChange}
-//             placeholder="Search for products, deals, or discounts..."
-//             className="flex-grow bg-transparent border-none outline-none text-white px-4 py-2"
+//           <Heading 
+//             className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent mb-12" 
+//             title="Ask Anything, Shop Everything!" 
 //           />
-//           <Button
-//             type="submit"
-//             className="flex items-center gap-2"
-//             disabled={loading}
+          
+//           <form 
+//             onSubmit={handleSubmit} 
+//             className="flex items-center max-w-2xl mx-auto"
 //           >
-//             <Search size={20} />
-//             <span>Search</span>
-//           </Button>
-//         </form>
+//             <input
+//               type="text"
+//               placeholder="Search for products..."
+//               value={query}
+//               onChange={handleInputChange}
+//               className="w-full px-6 py-4 text-lg rounded-l-xl border border-gray-700 bg-gray-900/50 backdrop-blur-xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
+//             />
+//             <motion.button
+//               type="submit"
+//               className="px-8 py-4 rounded-r-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
+//               whileHover={{ scale: 1.02 }}
+//               whileTap={{ scale: 0.98 }}
+//             >
+//               Search
+//             </motion.button>
+//           </form>
+          
+//           {loading && (
+//             <motion.div
+//               initial={{ opacity: 0 }}
+//               animate={{ opacity: 1 }}
+//               className="mt-8"
+//             >
+//               <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"/>
+//             </motion.div>
+//           )}
+          
+//           {error && (
+//             <motion.p
+//               initial={{ opacity: 0 }}
+//               animate={{ opacity: 1 }}
+//               className="mt-6 text-red-500 text-lg"
+//             >
+//               {error}
+//             </motion.p>
+//           )}
+//         </motion.div>
 //       </div>
 
-//       {/* Loading and Error States */}
-//       {loading && (
-//         <div className="mt-8 flex items-center justify-center">
-//           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-//         </div>
-//       )}
+//       {/* Results Section */}
+//       <AnimatePresence>
+//         {searchResults && searchResults.length > 0 && (
+//           <motion.div
+//             initial={{ opacity: 0, y: 40 }}
+//             animate={{ opacity: 1, y: 0 }}
+//             exit={{ opacity: 0, y: 20 }}
+//             transition={{ duration: 0.6 }}
+//             className="mt-24 md:mt-32 max-w-[1400px] w-full mx-auto px-6"
+//           >
+//             <div className="text-center mb-16">
+//               <Heading 
+//                 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent" 
+//                 title="Exclusive Deals Just for You" 
+//               />
+//             </div>
 
-//       {error && (
-//         <div className="mt-8 px-4 py-3 bg-red-500/20 text-red-400 rounded-lg text-center">
-//           {error}
-//         </div>
-//       )}
-
-//       {/* Deals Display */}
-//       {response?.deals && response.deals.length > 0 && (
-//         <div className="mt-8 w-full max-w-7xl px-4">
-//           <div className="container relative z-2 text-center mb-8">
-//             <Heading
-//               className="md:max-w-md lg:max-w-2xl mx-auto"
-//               title={`Found ${response.deals.length} Deal${
-//                 response.deals.length > 1 ? "s" : ""
-//               }`}
-//             />
-//           </div>
-
-//           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-//             {response.deals.map((deal, index) => {
-//               const savings = calculateSavings(deal);
-//               const isExpanded = expandedDeals[index];
-
-//               return (
-//                 <div
+//             <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+//               {searchResults.map((deal, index) => (
+//                 <DealCard 
 //                   key={index}
-//                   className="card bg-gray-900/50 backdrop-blur-xl border border-gray-800 rounded-xl overflow-hidden hover:border-gray-700 transition-colors"
-//                 >
-//                   <div className="p-6">
-//                     {/* Deal Header */}
-//                     <div className="flex justify-between items-start mb-4">
-//                       <h2 className="text-xl font-bold text-white">
-//                         {deal.name}
-//                       </h2>
-//                       <div className="flex flex-col items-end">
-//                         {deal.originalPrice && (
-//                           <div className="text-sm text-gray-400 line-through">
-//                             ${deal.originalPrice}
-//                           </div>
-//                         )}
-//                         <div className="text-2xl font-bold text-white">
-//                           ${deal.currentPrice}
-//                         </div>
-//                       </div>
-//                     </div>
+//                   deal={deal}
+//                   onViewDeal={handleProductClick}
+//                 />
+//               ))}
+//             </div>
+//           </motion.div>
+//         )}
+//       </AnimatePresence>
+//     </Section>
+//   );
+// };
 
-//                     {/* Savings Badge */}
-//                     {savings && (
-//                       <div className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full inline-flex items-center gap-2 mb-4">
-//                         <DollarSign size={16} />
-//                         <span>
-//                           Save ${savings.amount} ({savings.percentage}% off)
-//                         </span>
-//                       </div>
-//                     )}
+// export default withSubscription(Hero);
 
-//                     {/* Description */}
-//                     {deal.description && (
-//                       <p className="text-gray-300 mb-4">{deal.description}</p>
-//                     )}
 
-//                     {/* Expand/Collapse Button */}
-//                     <button
-//                       onClick={() => toggleDealExpansion(index)}
-//                       className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors mb-4"
-//                     >
-//                       {isExpanded ? (
-//                         <>
-//                           <ChevronUp size={20} />
-//                           <span>Show less</span>
-//                         </>
-//                       ) : (
-//                         <>
-//                           <ChevronDown size={20} />
-//                           <span>Show more details</span>
-//                         </>
-//                       )}
-//                     </button>
-
-//                     {/* Extended Info */}
-//                     {isExpanded && (
-//                       <div className="space-y-4 mt-4 border-t border-gray-700 pt-4">
-//                         {/* Coupons Section */}
-//                         {deal.coupons && deal.coupons.length > 0 && (
-//                           <div className="space-y-2">
-//                             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-//                               <Tag size={18} />
-//                               Available Coupons
-//                             </h3>
-//                             <div className="space-y-2">
-//                               {deal.coupons.map((coupon, idx) => (
-//                                 <div
-//                                   key={idx}
-//                                   className="bg-gray-800/50 p-3 rounded-lg"
-//                                 >
-//                                   <div className="font-mono text-green-400">
-//                                     {coupon.code}
-//                                   </div>
-//                                   <div className="text-sm text-gray-300">
-//                                     {coupon.description}
-//                                   </div>
-//                                 </div>
-//                               ))}
-//                             </div>
-//                           </div>
-//                         )}
-
-//                         {/* Cashback Section */}
-//                         {deal.cashback && deal.cashback.length > 0 && (
-//                           <div className="space-y-2">
-//                             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-//                               <Percent size={18} />
-//                               Cashback Offers
-//                             </h3>
-//                             <div className="space-y-2">
-//                               {deal.cashback.map((offer, idx) => (
-//                                 <div
-//                                   key={idx}
-//                                   className="bg-gray-800/50 p-3 rounded-lg"
-//                                 >
-//                                   <div className="font-semibold text-white">
-//                                     {offer.platform}
-//                                   </div>
-//                                   <div className="text-green-400">
-//                                     {offer.amount}
-//                                   </div>
-//                                 </div>
-//                               ))}
-//                             </div>
-//                           </div>
-//                         )}
-
-//                         {/* Steps Section */}
-//                         {deal.steps && deal.steps.length > 0 && (
-//                           <div className="space-y-2">
-//                             <h3 className="text-lg font-semibold text-white">
-//                               How to Get This Deal
-//                             </h3>
-//                             <ol className="list-decimal list-inside space-y-1 text-gray-300">
-//                               {deal.steps.map((step, idx) => (
-//                                 <li key={idx}>{step}</li>
-//                               ))}
-//                             </ol>
-//                           </div>
-//                         )}
-
-//                         {/* Expiration */}
-//                         {deal.expiration && (
-//                           <div className="flex items-center gap-2 text-sm text-gray-400">
-//                             <Clock size={16} />
-//                             <span>Expires: {deal.expiration}</span>
-//                           </div>
-//                         )}
-//                       </div>
-//                     )}
-
-//                     {/* Action Button */}
-//                     <div className="mt-6">
-//                       <Button
-//                         onClick={() => handleDealClick(deal.productLink)}
-//                         className="w-full flex items-center justify-center gap-2"
-//                       >
-//                         <ExternalLink size={20} />
-//                         <span>View Deal</span>
-//                       </Button>
-//                     </div>
-//                   </div>
-//                 </div>
-//               );
-//             })}
-//           </div>
-//         </div>
-//       )}

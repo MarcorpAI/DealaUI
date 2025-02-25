@@ -14,6 +14,9 @@ import VerifyEmail from "./pages/VerifyEmail";
 import EmailVerification from "./components/EmailVerification";
 import PoliciesPage from "./pages/PolicyPage";
 import { Analytics } from "@vercel/analytics/react";
+import ProductDetailPage from "./pages/ProductDetail";
+import { SearchProvider } from "./context/SearchContext"; // Import the provider
+
 
 function Logout() {
   localStorage.clear();
@@ -27,6 +30,8 @@ function RegisterAndLogout() {
 
 const App = () => {
   return (
+    <SearchProvider>
+
     <BrowserRouter>
       <div className="pt-4[4.75rem] lg:pt-[5.25rem] overflow-hidden">
         <Analytics />
@@ -50,6 +55,8 @@ const App = () => {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/verify-email/:token" element={<VerifyEmail />} />
           <Route path="/policy" element={<PoliciesPage />} />
+
+              <Route path="/products/:productId" element={<ProductDetailPage />} />
           <Route
             path="/deala"
             element={
@@ -62,6 +69,8 @@ const App = () => {
         </Routes>
       </div>
     </BrowserRouter>
+    </SearchProvider>
+
   );
 };
 
