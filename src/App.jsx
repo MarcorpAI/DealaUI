@@ -11,70 +11,77 @@ import Collaboration from "./components/Collaboration";
 import Pricing from "./components/Pricing";
 import Footer from "./components/Footer";
 import VerifyEmail from "./pages/VerifyEmail";
-import EmailVerification from "./components/EmailVerification";
 import PoliciesPage from "./pages/PolicyPage";
 import { Analytics } from "@vercel/analytics/react";
 import ProductDetailPage from "./pages/ProductDetail";
-import { SearchProvider } from "./context/SearchContext"; // Import the provider
+import { SearchProvider } from "./context/SearchContext";
+import { useLocation } from "react-router-dom";
+
+function Layout() {
+  const location = useLocation();
+  const hideLayout = location.pathname === "/deala"; // Check if current page is Deala
+
+  return (
+    <div className="pt-4[4.75rem] lg:pt-[5.25rem] overflow-hidden">
+      <Analytics />
+      {!hideLayout && <Header />} {/* Hide header on /deala */}
 
 
-function Logout() {
-  localStorage.clear();
-  return <Navigate to="/login" />;
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <>
+              <Hero />
+              <Benefits />
+              <Collaboration />
+              <Pricing />
+              <Footer />
+              <ButtonGradient />
+            </>
+          }
+        />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/verify-email/:token" element={<VerifyEmail />} />
+        <Route path="/policy" element={<PoliciesPage />} />
+        <Route path="/products/:productId" element={<ProductDetailPage />} />
+        <Route
+          path="/deala"
+          element={
+            <ProtectedRoute>
+              <Deala />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      {!hideLayout && <Footer />} {/* Hide footer on /deala */}
+    </div>
+  );
 }
 
-function RegisterAndLogout() {
-  localStorage.clear();
-  return <Register />;
-}
-
-const App = () => {
+function App() {
   return (
     <SearchProvider>
-
-    <BrowserRouter>
-      <div className="pt-4[4.75rem] lg:pt-[5.25rem] overflow-hidden">
-        <Analytics />
-        <Header />{" "}
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <>
-                <Hero />
-                <Benefits />
-                <Collaboration />
-                <Pricing />
-                <Footer />
-                <ButtonGradient />
-              </>
-            }
-          />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<RegisterAndLogout />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/verify-email/:token" element={<VerifyEmail />} />
-          <Route path="/policy" element={<PoliciesPage />} />
-
-              <Route path="/products/:productId" element={<ProductDetailPage />} />
-          <Route
-            path="/deala"
-            element={
-              <ProtectedRoute>
-                <Deala />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
-    </BrowserRouter>
+      <BrowserRouter>
+        <Layout />
+      </BrowserRouter>
     </SearchProvider>
-
   );
-};
+}
 
 export default App;
+
+
+
+
+
+
+
+
+
 
 // import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // import ButtonGradient from "./assets/svg/ButtonGradient";
@@ -88,6 +95,13 @@ export default App;
 // import Collaboration from "./components/Collaboration";
 // import Pricing from "./components/Pricing";
 // import Footer from "./components/Footer";
+// import VerifyEmail from "./pages/VerifyEmail";
+// import EmailVerification from "./components/EmailVerification";
+// import PoliciesPage from "./pages/PolicyPage";
+// import { Analytics } from "@vercel/analytics/react";
+// import ProductDetailPage from "./pages/ProductDetail";
+// import { SearchProvider } from "./context/SearchContext"; // Import the provider
+
 
 // function Logout() {
 //   localStorage.clear();
@@ -101,9 +115,12 @@ export default App;
 
 // const App = () => {
 //   return (
+//     <SearchProvider>
+
 //     <BrowserRouter>
 //       <div className="pt-4[4.75rem] lg:pt-[5.25rem] overflow-hidden">
-//         <Header />
+//         <Analytics />
+//         <Header />{" "}
 //         <Routes>
 //           <Route
 //             path="/"
@@ -121,6 +138,10 @@ export default App;
 //           <Route path="/login" element={<Login />} />
 //           <Route path="/register" element={<RegisterAndLogout />} />
 //           <Route path="/pricing" element={<Pricing />} />
+//           <Route path="/verify-email/:token" element={<VerifyEmail />} />
+//           <Route path="/policy" element={<PoliciesPage />} />
+
+//               <Route path="/products/:productId" element={<ProductDetailPage />} />
 //           <Route
 //             path="/deala"
 //             element={
@@ -133,6 +154,8 @@ export default App;
 //         </Routes>
 //       </div>
 //     </BrowserRouter>
+//     </SearchProvider>
+
 //   );
 // };
 
